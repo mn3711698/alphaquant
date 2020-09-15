@@ -1,0 +1,24 @@
+{
+  "rabbitmq": {
+    "host": "47.245.52.122",
+    "port": "5672",
+    "username": "guest",
+    "password": "guest"
+  },
+  "broker": {
+    "api_key": "XbL8MxbxA9affXLfGKgYfuTaxBKMJsFYBsgEBWrT8zPirRxI62AkLejoRmIxEm3G",
+    "api_secret": "tfLpSOdZ3OjxzOQcdvdCRDnSPKZMIpwRxzuntMz3po9V4ECA8A5onOIVjvzF5yDC",
+    "symbol": "BTCUSDT",
+    "tp": 100,
+    "sl": 30,
+    "qty": 0.001,
+    "timeframe": "15m",
+    "name": "BinanceFutures Alpha"
+  }, "mongo": {
+    "host": "47.245.52.122",
+    "port": 27017,
+    "username": "guest",
+    "password": "guest",
+    "database": "market"
+  }
+}

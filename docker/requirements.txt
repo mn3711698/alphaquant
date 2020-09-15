@@ -1,0 +1,8 @@
+dataclasses
+websocket_client
+pymongo
+pika
+statsmodels
+empyrical
+matplotlib
+pyecharts

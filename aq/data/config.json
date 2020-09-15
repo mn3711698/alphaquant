@@ -1,0 +1,23 @@
+{
+  "rabbitmq": {
+    "host": "47.245.52.122",
+    "port": "5672",
+    "username": "guest",
+    "password": "guest"
+  },
+  "markets": {
+    "BinanceFutures": {
+      "symbol":["BTC-USDT"],
+      "channel": "l2_book"},
+    "FTX": {
+      "symbol":["BTC-PERP"],
+      "channel": "l2_book"}
+  },
+    "mongo": {
+    "host": "47.245.52.122",
+    "port": 27017,
+    "username": "guest",
+    "password": "guest",
+    "database": "market"
+  }
+}

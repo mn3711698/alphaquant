@@ -1,0 +1,33 @@
+{
+  "rabbitmq": {
+    "host": "47.245.52.122",
+    "port": "5672",
+    "username": "guest",
+    "password": "guest"
+  },
+  "markets": {
+    "BinanceFutures": {
+      "symbol":["BTC-USDT"],
+      "channel": "l2_book"},
+    "FTX": {
+      "symbol":["BTC-PERP"],
+      "channel": "l2_book"}
+  },
+  "short": {
+    "api_key": "rOGo6rIk5OtpapkKTmvsPLT6mtKGmtJm9hzuy8Bu",
+    "api_secret": "mjLHNaokSQOZiPBtYnAtHynV6Y__UxMbh8s9NzRG",
+    "symbols": ["BTC-PERP"]
+  },
+  "binance": {
+    "api_key": "qer4Udt2tkbfOihvE5zlINiPgfmuC5hbx1SEQmmow8XXiJqZhyGwtF83VRjuIqXN",
+    "api_secret": "X7UOt9wgYNCgjuLwIKX6Taij6afQTj89mKqG4fsYqufnxqrLI2GsV5kTZ7H7u1TL",
+    "symbols": ["BTCUSDT"],
+    "name": "BinanceFutures"
+  }, "mongo": {
+    "host": "47.245.52.122",
+    "port": 27017,
+    "username": "guest",
+    "password": "guest",
+    "database": "market"
+  }
+}

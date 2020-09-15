@@ -1,0 +1,14 @@
+{
+  "rabbitmq": {
+    "host": "47.245.52.122",
+    "port": "5672",
+    "username": "guest",
+    "password": "guest"
+  }, "mongo": {
+    "host": "47.245.52.122",
+    "port": 27017,
+    "username": "guest",
+    "password": "guest",
+    "database": "market"
+  }
+}

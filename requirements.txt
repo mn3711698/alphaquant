@@ -1,0 +1,14 @@
+
+websocket_client
+pymongo
+pika
+statsmodels
+empyrical
+matplotlib
+pyecharts
+pandas
+TA-Lib
+ccxt
+apscheduler
+
+
