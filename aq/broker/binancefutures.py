@@ -737,18 +737,23 @@ class BinanceFutures(BaseBroker):
             return self.request("put", uri, body=data, auth=False)
 
     def request(self, method, uri, params=None, body=None, auth=False, **kwargs):
-        url = urljoin(self.host, uri)
-        data = {}
-        if params:
-            data.update(params)
-        if body:
-            data.update(body)
-        query = self.signature(data, auth)
-        if query:
-            url += ("?" + query)
-        response = getattr(self.session, method)(url, **kwargs)
-        # response = getattr(self.session, method)(url, proxies=proxies, **kwargs)
-        return self._handel_request(response)
+        try:
+            url = urljoin(self.host, uri)
+            data = {}
+            if params:
+                data.update(params)
+            if body:
+                data.update(body)
+            query = self.signature(data, auth)
+            if query:
+                url += ("?" + query)
+            response = getattr(self.session, method)(url, **kwargs)
+            # response = getattr(self.session, method)(url, proxies=proxies, **kwargs)
+            return self._handel_request(response)
+        except Exception as e:
+            log.error(e)
+            log.error(traceback.print_exc())
+            return None
 
 
 class BinanceFuturesWebsocket(WebsocketClient):

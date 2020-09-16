@@ -4,48 +4,74 @@ import pandas as pd
 import numpy as np
 
 class GridStrategy(bt.Strategy):
+    params = (
+        ('maperiod', 30),
+    )
 
     def __init__(self):
-        self.highest = bt.indicators.Highest(self.data.high, period=30, subplot=False)
-        self.lowest = bt.indicators.Lowest(self.data.low, period=30, subplot=False)
-        mid = (self.highest + self.lowest)/2
-        perc_levels = [x for x in np.arange(
-            1 + 0.005 * 5, 1 - 0.005 * 5 - 0.005/2, -0.005)]
-        self.price_levels = [mid * x for x in perc_levels]
-        self.last_price_index = None
+        self.high = self.data.high
+        self.low = self.data.low
+        self.close=self.data.close
+        self.volt=(self.high-self.low)/self.close
+        self.status=0
+
+    def init_pos(self):
+        price=self.close[0]
+        cash = self.broker.get_cash()
+        size=cash/2/price
+        self.buy(price=price, size=size)
+
+
+
+
+
 
     def next(self):
-        if self.last_price_index == None:
-            for i in range(len(self.price_levels)):
-                if self.data.close > self.price_levels[i]:
-                    self.last_price_index = i
-                    self.order_target_percent(
-                        target=i/(len(self.price_levels) - 1))
-                    return
-        else:
-            signal = False
-            while True:
-                upper = None
-                lower = None
-                if self.last_price_index > 0:
-                    upper = self.price_levels[self.last_price_index - 1]
-                if self.last_price_index < len(self.price_levels) - 1:
-                    lower = self.price_levels[self.last_price_index + 1]
-                # 还不是最轻仓，继续涨，就再卖一档
-                if upper != None and self.data.close > upper:
-                    self.last_price_index = self.last_price_index - 1
-                    signal = True
-                    continue
-                # 还不是最重仓，继续跌，再买一档
-                if lower != None and self.data.close < lower:
-                    self.last_price_index = self.last_price_index + 1
-                    signal = True
-                    continue
-                break
-            if signal:
-                self.long_short = None
-                self.order_target_percent(
-                    target=self.last_price_index/(len(self.price_levels) - 1))
+        if self.status==0:
+            self.init_pos()
+            self.status=1
+        cash=self.broker.get_cash()
+        value=self.broker.get_value()
+        pos=self.getposition()
+        print(cash,value,pos)
+
+
+
+
+
+
+
+        # if self.last_price_index == None:
+        #     for i in range(len(self.price_levels)):
+        #         if self.data.close > self.price_levels[i]:
+        #             self.last_price_index = i
+        #             self.order_target_percent(
+        #                 target=i/(len(self.price_levels) - 1))
+        #             return
+        # else:
+        #     signal = False
+        #     while True:
+        #         upper = None
+        #         lower = None
+        #         if self.last_price_index > 0:
+        #             upper = self.price_levels[self.last_price_index - 1]
+        #         if self.last_price_index < len(self.price_levels) - 1:
+        #             lower = self.price_levels[self.last_price_index + 1]
+        #         # 还不是最轻仓，继续涨，就再卖一档
+        #         if upper != None and self.data.close > upper:
+        #             self.last_price_index = self.last_price_index - 1
+        #             signal = True
+        #             continue
+        #         # 还不是最重仓，继续跌，再买一档
+        #         if lower != None and self.data.close < lower:
+        #             self.last_price_index = self.last_price_index + 1
+        #             signal = True
+        #             continue
+        #         break
+        #     if signal:
+        #         self.long_short = None
+        #         self.order_target_percent(
+        #             target=self.last_price_index/(len(self.price_levels) - 1))
 
 if __name__ == '__main__':
     # 创建引擎
@@ -63,6 +89,7 @@ if __name__ == '__main__':
 
     # 设置起始资金
     cerebro.broker.setcash(100000.0)
+
 
     # 设定对比指数
     cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years,

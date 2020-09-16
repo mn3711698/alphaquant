@@ -31,12 +31,14 @@ class Spike(BaseStrategy):
     maxtrades=0
     sig=0
     varsig=0
-    tp=60
-    sl=20
-    qty=0.001 #每单下单量
+    tp_per=0.005
+    sl_per=0.005
+    # qty=0.001 #每单下单量
+    percent=0.05 #下单量占资金百分比
     position=[]
     dt=3
-    move_ratio=0.005
+    miniqty=3 #下单数量小数痊
+    move_ratio=0.002 #移动止损止盈反弹幅度
     highprice=0
     lowprice=0
     status=False
@@ -190,30 +192,24 @@ class Spike(BaseStrategy):
                 # log.info(p)
                 data=self.data
                 price=float(data["c"])
+                #止损
                 if p.direction==Direction.LONG:
-                    if price-p.price>self.tp:
-                        o=self.broker.close_position(p)
-                        log.info(f"止盈平仓：{o}")
-                        self.lowprice=0
-                        self.highprice=0
-                    if p.price-price>self.sl:
+                    if price<(p.price*(1-self.sl_per)):
                         o = self.broker.close_position(p)
                         log.info(f"止损平仓：{o}")
                         self.lowprice = 0
                         self.highprice = 0
                 else:
-                    if p.price-price>self.tp:
-                        o=self.broker.close_position(p)
-                        log.info(f"止盈平仓：{o}")
-                        self.lowprice = 0
-                        self.highprice = 0
-                    if price-p.price>self.sl:
+                    if price>(p.price*(1+self.sl_per)):
                         o = self.broker.close_position(p)
                         log.info(f"止损平仓：{o}")
                         self.lowprice = 0
                         self.highprice = 0
+                #止盈
                 if self.move_tp(p.direction, price, p.price):
                     o = self.broker.close_position(p)
+                    self.lowprice = 0
+                    self.highprice = 0
                     log.info(f"移动止盈：{o}")
             time.sleep(1)
 
@@ -248,17 +244,20 @@ class Spike(BaseStrategy):
         else:
             position = self.broker.get_positions(self.symbol)
             if len(position) == 0:
+                value = self.broker.get_balnce("USDT")
+                #根据开仓百分比下单
+                qty = round(value *self.percent / price, self.miniqty)
+                log.info(f"当前账户USDT余额：{value}")
                 if side==BUY:
-                    o=self.broker.buy(self.symbol,self.qty)
+                    o=self.broker.buy(self.symbol,qty)
                     log.info(f"买单：{o}")
                     time.sleep(0.5)
                     self.position = self.broker.get_positions(self.symbol)
                     log.info(f"当前持仓{self.position }")
                     self.lowprice = 0
                     self.highprice = 0
-
                 else:
-                    o=self.broker.sell(self.symbol, self.qty)
+                    o=self.broker.sell(self.symbol, qty)
                     log.info(f"卖单：{o}")
                     time.sleep(0.5)
                     self.position = self.broker.get_positions(self.symbol)
@@ -272,20 +271,22 @@ class Spike(BaseStrategy):
         if self.lowprice>close or self.lowprice==0:
             self.lowprice=close
         if side==Direction.LONG:
-            if (self.highprice-close)/close>self.move_ratio:
-                log.info(f"高点 {self.highprice},回调 {(self.highprice-close)/close}")
+            #高点超过止盈价，收盘价低于止盈价时止盈
+            if self.highprice>price*(1+self.tp_per) and close<price(1+self.tp_per):
+                log.info(f"高点{self.highprice},回调到{close}")
                 return True
-            elif (self.highprice-price)>10 and (close-price)<10:
-                log.info(f"高点 {self.highprice}，开仓价 {price},当前价{close}")
+            #高点超过止盈价，回调幅度大于回撤百分比
+            elif self.highprice>price*(1+self.tp_per) and (self.highprice-close)/close>self.move_ratio:
+                log.info(f"高点 {self.highprice},回调 {(self.highprice-close)/close}")
                 return True
             else:
                 return False
         else:
-            if (close-self.lowprice)/close>self.move_ratio:
-                log.info(f"低点 {self.lowprice},回调 {(close-self.lowprice)/close}")
+            if self.lowprice<price*(1-self.sl_per) and close>price(1-self.tp_per):
+                log.info(f"低点{self.lowprice},回调到{close}")
                 return True
-            elif (price-self.lowprice) > 20 and (price-close) < 10:
-                log.info(f"低点 {self.lowprice}，开仓价 {price},当前价{close}")
+            elif (close-self.lowprice)/close>self.move_ratio:
+                log.info(f"低点 {self.lowprice},回调 {(close-self.lowprice)/close}")
                 return True
             else:
                 return False
