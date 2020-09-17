@@ -21,7 +21,7 @@ from time import sleep
 class EventServer:
 
     def __init__(self):
-        self._host ="47.245.52.122"
+        self._host ="127.0.0.1"
         self._port = "5672"
         self._username ="guest"
         self._password ="guest"

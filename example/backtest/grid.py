@@ -1,5 +1,6 @@
 import backtrader as bt
 import os,sys
+from backtrader.order import Order
 import pandas as pd
 import numpy as np
 
@@ -13,27 +14,57 @@ class GridStrategy(bt.Strategy):
         self.low = self.data.low
         self.close=self.data.close
         self.volt=(self.high-self.low)/self.close
+        self.volt_per=0
         self.status=0
+        self.cur_price=0
+        self.orders={}
+
 
     def init_pos(self):
         price=self.close[0]
         cash = self.broker.get_cash()
         size=cash/2/price
         self.buy(price=price, size=size)
-
-
-
-
-
+        self.cur_price=price
+        self.size=round(size/20,2)
 
     def next(self):
         if self.status==0:
             self.init_pos()
             self.status=1
-        cash=self.broker.get_cash()
-        value=self.broker.get_value()
-        pos=self.getposition()
-        print(cash,value,pos)
+        else:
+            price=self.close[0]
+            print("收盘价：",self.close[0]," 最高价:",self.high[0]," 最低价：",self.low[0])
+            if self.volt_per>0 and len(self.orders)==0:
+                order=self.buy(price=price*(1-self.volt_per),size=self.size,exectype=Order.Limit)
+                self.orders[order.ref]=order
+                order=self.sell(price=price*(1+self.volt_per),size=self.size,exectype=Order.Limit)
+                self.orders[order.ref] = order
+
+
+            volt=np.array(self.volt.get(size=self.p.maperiod))
+            if len(volt)>=30:
+                self.volt_per=volt.mean()
+
+    def notify_order(self, order):
+        try:
+            if order.status in [order.Completed]:
+                self.cur_price=order.price
+                self.orders.pop(order.ref)
+                for i in self.orders:
+                    self.cancel(self.orders[i])
+
+                print(f"订单{order.ref},{order.price},{order.ordtype},成交")
+                p=self.getposition()
+                print("余额：",self.broker.get_cash()," 持仓数量",p.size)
+
+            if order.status in [order.Canceled]:
+                self.orders.pop(order.ref)
+        except Exception as e:
+            print(e)
+
+
+
 
 
 
@@ -83,7 +114,7 @@ if __name__ == '__main__':
     # 导入数据
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
     datapath = os.path.join(modpath, 'BINANCE_BTCUSDT.csv')
-    data = bt.feeds.BacktraderCSVData(dataname=datapath, timeframe=bt.TimeFrame.Minutes)
+    data = bt.feeds.BacktraderCSVData(dataname=datapath)
 
     cerebro.adddata(data)
 

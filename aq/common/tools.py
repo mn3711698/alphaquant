@@ -29,7 +29,7 @@ def get_cur_timestamp_ms():
     return ts
 
 
-def get_cur_datetime_m(fmt='%Y%m%d%H%M%S%f'):
+def get_cur_datetime_m(fmt='%Y.%m.%d %H:%M:%S.%f'):
     """ 获取当前日期时间字符串，包含 年 + 月 + 日 + 时 + 分 + 秒 + 微妙
     """
     today = datetime.datetime.today()

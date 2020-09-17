@@ -36,6 +36,7 @@ class Spike(BaseStrategy):
     # qty=0.001 #每单下单量
     percent=0.05 #下单量占资金百分比
     position=[]
+    margin=50
     dt=3
     miniqty=3 #下单数量小数痊
     move_ratio=0.002 #移动止损止盈反弹幅度
@@ -116,12 +117,11 @@ class Spike(BaseStrategy):
                 side=SELL
 
             self.sig = ((1 / (1 + math.exp(-v))) - 0.5) * 2
-            log.info(f"当前爆仓sig {self.sig},最近1小时成交量 {volume},强平卖单量 {self.sell_force},强平买单量 {self.buy_force}")
+            # log.info(f"当前爆仓sig {self.sig},最近1小时成交量 {volume},强平卖单量 {self.sell_force},强平买单量 {self.buy_force}")
             price =float(self.data['c'])
-            log.info(f"当前价格 {price}")
+            # log.info(f"当前价格 {price}")
             if self.sig>0.85:
-                # log.info(f"当前爆仓sig {self.sig},最近1小时成交量 {volume},强平卖单量 {self.sell_force},强平买单量 {self.buy_force}")
-
+                log.info(f"当前爆仓sig {self.sig},最近1小时成交量 {volume},强平卖单量 {self.sell_force},强平买单量 {self.buy_force}")
                 self.open_order(side,price)
                 self.buy_force = 0
                 self.sell_force = 0
@@ -246,7 +246,7 @@ class Spike(BaseStrategy):
             if len(position) == 0:
                 value = self.broker.get_balnce("USDT")
                 #根据开仓百分比下单
-                qty = round(value *self.percent / price, self.miniqty)
+                qty = round(value *self.percent / price*50, self.miniqty)
                 log.info(f"当前账户USDT余额：{value}")
                 if side==BUY:
                     o=self.broker.buy(self.symbol,qty)
