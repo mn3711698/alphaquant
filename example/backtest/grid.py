@@ -3,6 +3,8 @@ import os,sys
 from backtrader.order import Order
 import pandas as pd
 import numpy as np
+import backtrader.analyzers as btanalyzers
+
 
 class GridStrategy(bt.Strategy):
     params = (
@@ -34,7 +36,7 @@ class GridStrategy(bt.Strategy):
             self.status=1
         else:
             price=self.close[0]
-            print("收盘价：",self.close[0]," 最高价:",self.high[0]," 最低价：",self.low[0])
+            # print("收盘价：",self.close[0]," 最高价:",self.high[0]," 最低价：",self.low[0])
             if self.volt_per>0 and len(self.orders)==0:
                 order=self.buy(price=price*(1-self.volt_per),size=self.size,exectype=Order.Limit)
                 self.orders[order.ref]=order
@@ -53,19 +55,10 @@ class GridStrategy(bt.Strategy):
                 self.orders.pop(order.ref)
                 for i in self.orders:
                     self.cancel(self.orders[i])
-
-                print(f"订单{order.ref},{order.price},{order.ordtype},成交")
-                p=self.getposition()
-                print("余额：",self.broker.get_cash()," 持仓数量",p.size)
-
             if order.status in [order.Canceled]:
                 self.orders.pop(order.ref)
         except Exception as e:
             print(e)
-
-
-
-
 
 
 
@@ -129,17 +122,22 @@ if __name__ == '__main__':
     # 策略收益
     cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years, _name='portfolio')
 
-    start_value = cerebro.broker.getvalue()
-    print('Starting Portfolio Value: %.2f' % start_value)
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    # Analyzer
+    cerebro.addanalyzer(btanalyzers.SharpeRatio, _name='mysharpe')
+    cerebro.addanalyzer(btanalyzers.AnnualReturn, _name='myannual')
+    cerebro.addanalyzer(btanalyzers.DrawDown, _name='mydrawdown')
 
     # Run over everything
-    results = cerebro.run(runonce=False)
+    thestrats = cerebro.run()
 
-    strat0 = results[0]
-    tret_analyzer = strat0.analyzers.getbyname('portfolio')
-    print('Portfolio Return:', tret_analyzer.get_analysis())
-    tdata_analyzer = strat0.analyzers.getbyname('benchmark')
-    print('Benchmark Return:', tdata_analyzer.get_analysis())
+    # Print out the final result
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+    thestrat = thestrats[0]
+    print('Sharpe Ratio:', thestrat.analyzers.mysharpe.get_analysis())
+    print('Annual Return:', thestrat.analyzers.myannual.get_analysis())
+    print('Drawdown Info:', thestrat.analyzers.mydrawdown.get_analysis())
 
     # 画图
     cerebro.plot(style='candle', barup='green')

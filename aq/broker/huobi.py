@@ -3,7 +3,7 @@
 @Time : 2020/4/25 1:17 下午
 @Author : Domionlu
 @Site : https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md
-@File : binancefutures.py
+@File : huobi.py
 """
 import os, sys
 
@@ -52,8 +52,8 @@ class Binance(BinanceFutures):
             "kline": "/api/v3/klines",
             "listenkey": "/api/v1/listenKey"
         },
-        "resthost": "https://api.binance.com",
-        "wshost": "wss://stream.binance.com:9443/ws",
+        "resthost": "https://api-aws.huobi.pro",
+        "wshost": "wss://api-aws.huobi.pro/ws",
         "channels": {"orderbook": "depth",
                      "ticker": "ticker",
                      "kline_1m": "kline_1m",
@@ -107,7 +107,7 @@ class Binance(BinanceFutures):
         self.subscribe([self.symbol], sub)
 
     def subscribe(self, symbols, subscribes):
-        self.ws = BinanceWebsocket(rest=self, param=self.param, subscribes=subscribes, symbols=symbols)
+        self.ws = BinanceFuturesWebsocket(rest=self, param=self.param, subscribes=subscribes, symbols=symbols)
 
     def _init_session(self):
         session = requests.session()
@@ -753,7 +753,7 @@ class Binance(BinanceFutures):
 
 
 
-class BinanceWebsocket(WebsocketClient):
+class BinanceFuturesWebsocket(WebsocketClient):
     """ Binance Trade module. You can initialize trader object with some attributes in kwargs.
     """
     host = "wss://fstream.binance.com/ws/"

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="d20cd2ac-bcb8-425d-a35f-a9c72d982c20" name="dongjing">
+        <fileTransfer rootFolder="/alphaquant" accessType="SFTP" host="47.245.52.122" port="22" sshConfigId="48262af3-fe21-45e9-8125-f162815068b9" sshConfig="root@47.245.52.122:22 key" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
