@@ -22,7 +22,7 @@ from aq.engine.autoreload import run_with_reloader
 class Spike(BaseStrategy):
     symbol="BTCUSDT"
     count=0
-
+    data={}
     buy_force=0  #强平数量
     sell_force=0 #强平数量
     force_time=0 #最后强平时间
@@ -45,7 +45,7 @@ class Spike(BaseStrategy):
     status=False
     def __init__(self, engine, setting):
         super().__init__(engine, setting)
-        self.msg = Weixin("19479203478@chatroom")
+        self.msg = Weixin("17377523487@chatroom")
         self.ev = engine
         self.bar=deque(maxlen=1440)
         cfg = config.long
@@ -186,32 +186,38 @@ class Spike(BaseStrategy):
 
     def check_position(self):
         while self.status:
-            position = self.broker.get_positions(self.symbol)
-            if len(position)>0:
-                p=position[0]
-                # log.info(p)
-                data=self.data
-                price=float(data["c"])
-                #止损
-                if p.direction==Direction.LONG:
-                    if price<(p.price*(1-self.sl_per)):
-                        o = self.broker.close_position(p)
-                        log.info(f"止损平仓：{o}")
-                        self.lowprice = 0
-                        self.highprice = 0
-                else:
-                    if price>(p.price*(1+self.sl_per)):
-                        o = self.broker.close_position(p)
-                        log.info(f"止损平仓：{o}")
-                        self.lowprice = 0
-                        self.highprice = 0
-                #止盈
-                if self.move_tp(p.direction, price, p.price):
-                    o = self.broker.close_position(p)
-                    self.lowprice = 0
-                    self.highprice = 0
-                    log.info(f"移动止盈：{o}")
-            time.sleep(1)
+            try:
+                position = self.broker.get_positions(self.symbol)
+                if len(position)>0:
+                    p=position[0]
+                    # log.info(p)
+                    data=self.data
+                    if len(data)>0:
+                        price=float(data["c"])
+                        #止损
+                        if p.direction==Direction.LONG:
+                            if price<(p.price*(1-self.sl_per)):
+                                o = self.broker.close_position(p)
+                                log.info(f"止损平仓：{o}")
+                                self.lowprice = 0
+                                self.highprice = 0
+                        else:
+                            if price>(p.price*(1+self.sl_per)):
+                                o = self.broker.close_position(p)
+                                log.info(f"止损平仓：{o}")
+                                self.lowprice = 0
+                                self.highprice = 0
+                        #止盈
+                        if self.move_tp(p.direction, price, p.price):
+                            o = self.broker.close_position(p)
+                            self.lowprice = 0
+                            self.highprice = 0
+                            log.info(f"移动止盈：{o}")
+                time.sleep(1)
+            except Exception as e:
+                print(e)
+                time.sleep(1)
+
 
     def max_volume(self,starttime):
         self.loadbar(starttime)
@@ -225,12 +231,8 @@ class Spike(BaseStrategy):
         bar_4h = self.broker.get_bar(self.symbol, "4h")
         close_4h = bar_4h["close"]
         t = trend_frsi(close_4h)
-        if side==SELL and t==-1:
-            msg= f"*******一阳指策略*******\n交易对:BTC合约(币安)\n当前价格：{price}\n操作建议:平多做空"
-            self.msg.send(msg)
-        elif side==BUY and t==1:
-            msg = f"*******一阳指策略*******\n交易对:BTC合约(币安)\n当前价格：{price}\n操作建议:平空做多"
-            self.msg.send(msg)
+
+
         # log.info(f"当前持仓{position}")
         if len(position)>0:
             pos=position[0]
@@ -246,7 +248,7 @@ class Spike(BaseStrategy):
             if len(position) == 0:
                 value = self.broker.get_balnce("USDT")
                 #根据开仓百分比下单
-                qty = round(value *self.percent / price*50, self.miniqty)
+                qty = round(float(value.balance)*self.percent / price*50, self.miniqty)
                 log.info(f"当前账户USDT余额：{value}")
                 if side==BUY:
                     o=self.broker.buy(self.symbol,qty)
@@ -256,6 +258,9 @@ class Spike(BaseStrategy):
                     log.info(f"当前持仓{self.position }")
                     self.lowprice = 0
                     self.highprice = 0
+
+                    msg = f"*******一阳指策略*******\n交易对:BTC合约(币安)\n当前价格：{price}\n操作建议:平空做多"
+                    self.msg.send(msg)
                 else:
                     o=self.broker.sell(self.symbol, qty)
                     log.info(f"卖单：{o}")
@@ -264,6 +269,8 @@ class Spike(BaseStrategy):
                     log.info(f"当前持仓{self.position}")
                     self.lowprice = 0
                     self.highprice = 0
+                    msg = f"*******一阳指策略*******\n交易对:BTC合约(币安)\n当前价格：{price}\n操作建议:平多做空"
+                    self.msg.send(msg)
 
     def move_tp(self,side,close,price):
         if self.highprice<close:
@@ -272,7 +279,7 @@ class Spike(BaseStrategy):
             self.lowprice=close
         if side==Direction.LONG:
             #高点超过止盈价，收盘价低于止盈价时止盈
-            if self.highprice>price*(1+self.tp_per) and close<price(1+self.tp_per):
+            if self.highprice>price*(1+self.tp_per) and close<price*(1+self.tp_per):
                 log.info(f"高点{self.highprice},回调到{close}")
                 return True
             #高点超过止盈价，回调幅度大于回撤百分比
@@ -282,10 +289,10 @@ class Spike(BaseStrategy):
             else:
                 return False
         else:
-            if self.lowprice<price*(1-self.sl_per) and close>price(1-self.tp_per):
+            if self.lowprice<price*(1-self.sl_per) and close>price*(1-self.tp_per):
                 log.info(f"低点{self.lowprice},回调到{close}")
                 return True
-            elif (close-self.lowprice)/close>self.move_ratio:
+            elif (close-self.lowprice)/close>self.move_ratio and self.lowprice<price*(1-self.sl_per):
                 log.info(f"低点 {self.lowprice},回调 {(close-self.lowprice)/close}")
                 return True
             else:

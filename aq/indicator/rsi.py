@@ -22,13 +22,18 @@ def trend_rsi(data,smoothK=3,smoothD=3,lengthRSI=7,lengthStoch=5):
     return trend
 
 def trend_frsi(data,timeperiod=6):
+    """
+    return -1#做空
+    return 1# 做多
+    return 0 #观望
+    """
     low=-0.8
     high=0.8
     r = talib.RSI(data, timeperiod=timeperiod)
     v1=0.1*(r-50)
     v2=talib.WMA(v1,timeperiod)
     ifish=list((np.exp(2*v2)-1)/(np.exp(2*v2)+1))
-    log.info(f"{ifish[-1]},{ifish[-2]}")
+    # log.info(f"{ifish[-1]},{ifish[-2]}")
     trend = 0
     if (ifish[-1]>0 and ifish[-1]>ifish[-2]) or (ifish[-1]>0.95):
         trend=1

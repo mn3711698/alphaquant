@@ -19,8 +19,8 @@
     "symbols": ["BTC-PERP"]
   },
   "long": {
-    "api_key": "qer4Udt2tkbfOihvE5zlINiPgfmuC5hbx1SEQmmow8XXiJqZhyGwtF83VRjuIqXN",
-    "api_secret": "X7UOt9wgYNCgjuLwIKX6Taij6afQTj89mKqG4fsYqufnxqrLI2GsV5kTZ7H7u1TL",
+    "api_key": "XbL8MxbxA9affXLfGKgYfuTaxBKMJsFYBsgEBWrT8zPirRxI62AkLejoRmIxEm3G",
+    "api_secret": "tfLpSOdZ3OjxzOQcdvdCRDnSPKZMIpwRxzuntMz3po9V4ECA8A5onOIVjvzF5yDC",
     "symbols": ["BTCUSDT"],
     "name": "BinanceFutures"
   }, "mongo": {
