@@ -8,7 +8,7 @@ class BaseStrategy(ABC):
     variables = []
     strategy_name = ""
     trading = False
-    def __init__(self,engine,setting):
+    def __init__(self,engine):
         # self.broker = engine.broker
         # self.update_setting(setting)
         pass

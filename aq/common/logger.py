@@ -13,7 +13,7 @@ from aq.data.MongoDataSerer import db
 import traceback
 from aq.common.tools import *
 import json
-from  aq.engine.config import config
+# from  aq.engine.config import config
 
 path = os.path.split(os.path.realpath(__file__))[0]
 log_path = os.path.join(path, 'result')  # 存放log文件的路径
@@ -132,8 +132,8 @@ class Logger(object):
 
         self.logger = logging.getLogger(logger_name)
         self.logger.setLevel(logging.DEBUG)
-        rabbit = RabbitMQHandler(host=config.rabbitmq.host, port=config.rabbitmq.port)
-        self.logger.addHandler(rabbit)
+        # rabbit = RabbitMQHandler(host=config.rabbitmq.host, port=config.rabbitmq.port)
+        # self.logger.addHandler(rabbit)
         logging.root.setLevel(logging.NOTSET)
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(self.formatter)

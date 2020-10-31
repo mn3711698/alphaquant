@@ -1,0 +1,31 @@
+{
+  "rabbitmq": {
+    "host": "47.245.52.122",
+    "port": "5672",
+    "username": "guest",
+    "password": "guest"
+  },
+  "markets": {
+    "BinanceFutures": {
+      "symbol":["BTC-USDT"],
+      "channel": "l2_book"},
+    "FTX": {
+      "symbol":["BTC-PERP"],
+      "channel": "l2_book"}
+  },
+
+
+  "exchange": {
+    "api_key": "XbL8MxbxA9affXLfGKgYfuTaxBKMJsFYBsgEBWrT8zPirRxI62AkLejoRmIxEm3G",
+    "api_secret": "tfLpSOdZ3OjxzOQcdvdCRDnSPKZMIpwRxzuntMz3po9V4ECA8A5onOIVjvzF5yDC",
+    "name": "BinanceFutures",
+    "symbols": ["BTCUSDT","ETHUSDT","LTCUSDT","EOSUSDT","LINKUSDT","ETCUSDT","BNBUSDT","ADAUSDT","DOTUSDT","TRXUSDT"],
+    "timeframe": "4h"
+  }, "mongo": {
+    "host": "47.245.52.122",
+    "port": 27017,
+    "username": "guest",
+    "password": "guest",
+    "database": "market"
+  }
+}

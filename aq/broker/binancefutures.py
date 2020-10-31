@@ -20,7 +20,7 @@ from aq.engine.baseBroke import BaseBroker
 from aq.common import tools
 from aq.engine.event import EventEngine
 from aq.common.logger import log
-from aq.common.websocket import WebsocketClient
+from aq.common.aqwebsocket import WebsocketClient
 import time
 from aq.common.object import *
 import traceback
@@ -35,14 +35,15 @@ import pandas as pd
 class BinanceFutures(BaseBroker):
     name = "BINANCE_FUTURES"
     BrokerType = Product.FUTURES  # 交易类型，现货，杠杆，合约
-
+    symbols={}
     positions = {}
     position_side="BOTH"
     param = {
         "api": {
-            "exchangeInfo": "/api/v3/exchangeInfo",
+            "exchangeInfo": "/fapi/v1/exchangeInfo",
             "account": "/api/v3/account",
-            "openinterest":"/futures/data/openInterestHist"
+            "openinterest":"/futures/data/openInterestHist",
+            "fundingrate": "/fapi/v1/premiumIndex"
         },
         "resthost": "https://fapi.binance.com",
         "wshost": "wss://fstream.binance.com/ws",
@@ -635,6 +636,7 @@ class BinanceFutures(BaseBroker):
             data["startTime"]=starttime
         bar = self.request("get", uri, body=data, auth=False)
         self.bars = bar
+
         df = pd.DataFrame(bar)
         df.columns = ['open_time',
                       'open', 'high', 'low', 'close', 'volume',
@@ -755,6 +757,31 @@ class BinanceFutures(BaseBroker):
             log.error(traceback.print_exc())
             return None
 
+    def get_info(self):
+        url = self.param['api'].get("exchangeInfo", None)
+        data={}
+        rs=self.request("get", url, body=data, auth=False)
+        rs=rs.get("symbols",None)
+        if rs!=None:
+            for i in rs:
+                self.symbols[i["symbol"]]=i
+
+    def get_fundingrate(self,symbol):
+        url = self.param['api'].get("fundingrate", None)
+        # uri = "/fapi/v1/openOrders"
+        data = {
+            "symbol": symbol,
+        }
+        rs = self.request("get", url, body=data, auth=False)
+        return rs
+    def get_fees(self):
+        self.get_info()
+        rate ={}
+        for i in self.symbols:
+            rate[i]=float(self.get_fundingrate(i).get("lastFundingRate", 0))
+        # print(rate)
+        return rate
+
 
 class BinanceFuturesWebsocket(WebsocketClient):
     """ Binance Trade module. You can initialize trader object with some attributes in kwargs.
@@ -818,8 +845,11 @@ class BinanceFuturesWebsocket(WebsocketClient):
 
     def _get_url(self):
         try:
-            self.listenKey = self.rest.get_listenKey()
-            return self.host + "/" + self.listenKey["listenKey"]
+            if self.rest.API_KEY!=None:
+                self.listenKey = self.rest.get_listenKey()
+                return self.host + "/" + self.listenKey["listenKey"]
+            else:
+                return self.host
         except Exception as e:
             log.info("获取listenkey异常")
             return self.host
@@ -961,18 +991,13 @@ def test_order():
     b = BinanceFutures(ev, key, secret)
     # b.start(["BTCUSDT"])
     # success,text=b.get_user_account()
+    log.info("开始下单")
     O = b.buy("BTCUSDT",0.001)
-    print("下单",O)
-    time.sleep(1)
+    log.info("开始结束。")
+    log.info("获取持仓")
     pos=b.get_positions("BTCUSDT")
-    print("当前持仓",pos)
-    time.sleep(5)
-    p=pos[0]
-    o=b.close_position(p)
-    print("平仓",o)
-    time.sleep(1)
-    pos=b.get_positions("BTCUSDT")
-    print("当前持仓",pos)
+    log.info("当前持仓")
+    print(pos)
 
 
 
@@ -987,11 +1012,22 @@ def test_subscribe():
     b.start("btcusdt",[FORCEORDER])
     ev.register(FORCEORDER, on_sub)
 
-
+def test_fundingrate():
+    ev = EventEngine()
+    key = "qer4Udt2tkbfOihvE5zlINiPgfmuC5hbx1SEQmmow8XXiJqZhyGwtF83VRjuIqXN"
+    secret = "X7UOt9wgYNCgjuLwIKX6Taij6afQTj89mKqG4fsYqufnxqrLI2GsV5kTZ7H7u1TL"
+    b = BinanceFutures(ev)
+    b.get_info()
+    rate=[]
+    for i in b.symbols:
+        rate.append([i,float(b.get_fundingrate(i).get("lastFundingRate",0))])
+    # print(rate)
+    df=pd.DataFrame(rate)
+    df.columns=["symbol","rate"]
+    df=df.sort_values(by="rate",ascending=True)
+    print(df)
     
 
 if __name__ == "__main__":
     # test_order()
     test_order()
-    while True:
-        time.sleep(1)

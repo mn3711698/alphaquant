@@ -13,27 +13,6 @@ import json
 import traceback
 
 
-class Fisher(bt.Indicator):
-
-
-    lines = ('fish', 'long', 'upper', 'lower')
-    params = (('period', 15),("multiplier",2))
-
-    def __init__(self):
-        self.addminperiod(self.p.period*2)
-    def next(self):
-        self.fish[0]=self.do(data)
-
-    def do(self,data):
-        idx=self.data.close.get_idx()
-        data=np.array(self.data.close.get(size=idx))
-        r =talib.RSI(data, timeperiod=self.p.period)
-        v1 = 0.1 * (r - 50)
-        v2 = talib.WMA(v1, self.p.period)
-        fish = list((np.exp(2 * v2) - 1) / (np.exp(2 * v2) + 1))
-        return fish[-1]
-
-
 class FisherStategy(bt.Strategy):
     params = (
         ('period', 6),
@@ -43,16 +22,16 @@ class FisherStategy(bt.Strategy):
         # self.fish=Fisher()
         # self.order=None
         self.hs15=self.dnames.hs15m
-        self.hs1m=self.dnames.hs1h
+        self.hs1h=self.dnames.hs1h
     def log(self, txt, dt=None):
         ''' Logging function fot this strategy'''
-        dt = dt or self.datas[0].datetime.date(0)
+        dt = dt or self.dnames.hs15m.datetime.date(0)
         print('%s, %s' % (dt.isoformat(), txt))
     def next(self):
         idx=self.data.close.get_idx()
-        if idx>self.p.period*2:
-            data=np.array(self.hs15.close.get(size=idx))
-            frsi=trend_frsi(data,self.p.period)
+        if idx>self.p.period*2*4:
+            data15m=np.array(self.hs15.close.get(size=idx))
+            frsi=trend_frsi(data15m,self.p.period)
             if frsi==1:
                 self.order=self.buy()
             if frsi==-1:
@@ -117,6 +96,7 @@ def load():
     data=pd.read_csv("BTCUSDT.csv")
     data=data[["starttime", "open","high","low","close","volume","trades"]]
     data["starttime"]=pd.to_datetime(data["starttime"],unit="ms")
+    data=data.set_index("starttime")
     return data
 
 

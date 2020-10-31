@@ -20,7 +20,7 @@ from aq.engine.baseBroke import BaseBroker
 from aq.common import tools
 from aq.engine.event import EventEngine
 from aq.common.logger import log
-from aq.common.websocket import WebsocketClient
+from aq.common.aqwebsocket import WebsocketClient
 import time
 from aq.common.object import *
 import traceback

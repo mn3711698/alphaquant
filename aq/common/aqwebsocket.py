@@ -3,7 +3,7 @@
 @Time : 2020/5/1 8:48 上午
 @Author : Domionlu
 @Site : 
-@File : websocket.py
+@File : aqwebsocket.py
 """
 # -*- coding:utf-8 -*-
 """
@@ -21,7 +21,7 @@ import traceback
 
 
 class WebsocketClient:
-    _CONNECT_TIMEOUT_S = 5
+    _CONNECT_TIMEOUT_S = 15
     CHANNEL="channel"
     def __init__(self):
         self.connect_lock = Lock()
@@ -63,7 +63,7 @@ class WebsocketClient:
         wst = Thread(target=self._run_websocket, args=(self.ws,))
         wst.daemon = True
         wst.start()
-
+        time.sleep(1)
         # Wait for socket to connect
         ts = time.time()
         while self.ws and (not self.ws.sock or not self.ws.sock.connected):

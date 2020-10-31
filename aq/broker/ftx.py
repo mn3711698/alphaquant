@@ -21,7 +21,7 @@ from aq.common.constant import *
 from aq.common import tools
 from aq.common.logger import log
 from aq.engine.event import EventEngine
-from aq.common.websocket import WebsocketClient
+from aq.common.aqwebsocket import WebsocketClient
 from requests import Request, Session
 from collections import defaultdict, deque
 from typing import DefaultDict, Deque, List, Dict
@@ -290,7 +290,14 @@ class Ftx(BaseBroker):
             sign = hmac.new(self.API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
             query += "&signature={s}".format(s=sign)
         return query
-
+    def get_info(self):
+        url = self.param['api'].get("exchangeInfo", None)
+        data={}
+        rs=self.request("get", url, body=data, auth=False)
+        rs=rs.get("symbols",None)
+        if rs!=None:
+            for i in rs:
+                self.symbols[i["symbol"]]=i
 
 class FTXWebsocket(WebsocketClient):
     """ FTX Trade module. You can initialize trader object with some attributes in kwargs.

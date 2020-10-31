@@ -23,8 +23,8 @@ class Grid(BaseStrategy):
     lower=0       #日线180最低值
 
 
-    def __init__(self, engine, setting):
-        super().__init__(engine, setting)
+    def __init__(self, engine):
+        super().__init__(engine)
         self.msg = Feishu()
         self.ev = engine
         long_cfg = config.long

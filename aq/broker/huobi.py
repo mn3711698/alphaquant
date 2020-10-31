@@ -20,11 +20,12 @@ from aq.engine.baseBroke import BaseBroker
 from aq.common import tools
 from aq.engine.event import EventEngine
 from aq.common.logger import log
-from aq.common.websocket import WebsocketClient
+from aq.common.aqwebsocket import WebsocketClient
 import time
 from aq.common.object import *
 import traceback
 import pandas as pd
+
 from aq.broker.binancefutures import BinanceFutures
 
 
@@ -32,14 +33,9 @@ from aq.broker.binancefutures import BinanceFutures
 # proxies={"host":"127.0.0.1","port":"1087"}
 
 # sched = BlockingScheduler()
-
-
-class Binance(BinanceFutures):
-    name = "BINANCE"
-    BrokerType = Product.CASH  # 交易类型，现货，杠杆，合约
-
-    positions = {}
-
+class Huobi(BaseBroker):
+    name ="Huobi"
+    BrokerType = Product.CASH
     param = {
         "api": {
             "exchangeInfo": "/api/v3/exchangeInfo",
@@ -50,9 +46,70 @@ class Binance(BinanceFutures):
             "open_orders": "/api/v1/openOrders",
             "balance": "/api/v3/account",
             "kline": "/api/v3/klines",
-            "listenkey": "/api/v1/listenKey"
         },
-        "resthost": "https://api-aws.huobi.pro",
+        "resthost": "https://api.huobi.pro",
+        "wshost": "wss://api-aws.huobi.pro/ws",
+        "channels": {"orderbook": "depth",
+                     "ticker": "ticker",
+                     "kline_1m": "kline_1m",
+                     "kline_5m": "kline_5m",
+                     "trades": "aggTrade",
+                     "account": "account",
+                     "order": "order",
+                     "forceOrder": "forceOrder"},
+        "exceptions": {
+
+        }
+
+    }
+    def request(self, method, uri, params=None, body=None, auth=False, **kwargs):
+        try:
+            url = urljoin(self.host, uri)
+            data = {}
+            if params:
+                data.update(params)
+            if body:
+                data.update(body)
+            query = self.signature(data, auth)
+            if query:
+                url += ("?" + query)
+            response = getattr(self.session, method)(url, **kwargs)
+            # response = getattr(self.session, method)(url, proxies=proxies, **kwargs)
+            return self._handel_request(response)
+        except Exception as e:
+            log.error(e)
+            log.error(traceback.print_exc())
+            return None
+
+    def signature(self, data, auth=False):
+        if data:
+            query = "&".join(["=".join([str(k), str(v)]) for k, v in data.items()])
+        else:
+            query = ""
+        if auth and query:
+            sign = hmac.new(self.API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
+            query += "&signature={s}".format(s=sign)
+        return query
+
+class HuobiFutures(Huobi):
+    name = "BINANCE"
+    BrokerType = Product.FUTURES  # 交易类型，现货，杠杆，合约
+
+    positions = {}
+    symbols={}
+    param = {
+        "api": {
+            "exchangeInfo": "/swap-api/v1/swap_contract_info",
+            "account": "/api/v3/account",
+            "orderbook": "/api/v3/depth",
+            "order": "/api/v1/order",
+            "open_order": "/api/v1/openOrder",
+            "open_orders": "/api/v1/openOrders",
+            "balance": "/api/v3/account",
+            "kline": "/api/v3/klines",
+            "fundingrate": "swap-api/v1/swap_funding_rate"
+        },
+        "resthost": "https://api.hbdm.com",
         "wshost": "wss://api-aws.huobi.pro/ws",
         "channels": {"orderbook": "depth",
                      "ticker": "ticker",
@@ -79,21 +136,12 @@ class Binance(BinanceFutures):
         self.bid_price = 0
         self.ask_price = 0
         self._orders = {}
-        self.ws = None
-        self.scheduler = BlockingScheduler()
-        subscribes = {ORDERBOOK: self.on_orderbook,
-                      TRADES: self.on_trades,
-                      TICKER: self.on_ticker,
-                      KLINE1: self.on_bar,
-                      KLINE5: self.on_bar,
-                      FORCEORDER: self.on_forceOrder,
-                      ACCOUNT: self.on_position,
-                      ORDER: self.on_orders}
-        self.param["callback"] = subscribes
+
+
 
     def start(self, sybmol, subscribes):
         self.symbol = sybmol.lower()
-        self.depth = DepthCache(self.symbol)
+        # self.depth = DepthCache(self.symbol)
         # subscribes = {"orderbook": self.on_orderbook,"trades":self.on_trades}
         sub = {}
         for s in subscribes:
@@ -106,8 +154,6 @@ class Binance(BinanceFutures):
                 sub[s] = self.param["callback"].get(s, None)
         self.subscribe([self.symbol], sub)
 
-    def subscribe(self, symbols, subscribes):
-        self.ws = BinanceFuturesWebsocket(rest=self, param=self.param, subscribes=subscribes, symbols=symbols)
 
     def _init_session(self):
         session = requests.session()
@@ -350,26 +396,6 @@ class Binance(BinanceFutures):
 
         self.on_event(TICKER, data)
 
-    def update_orderbook(self):
-        # log.info(self.depth.bids())
-        # log.info(self.depth.asks())
-        self.bid_price = float(self.depth.bids()[0][0])
-        self.ask_price = float(self.depth.asks()[0][0])
-        self.mid_price = round((self.bid_price + self.ask_price) / 2, 4)
-
-    #
-    # def on_order(self,msg):
-    #     log.info(f"on_order:{msg}")
-    def get_depth(self, symbol):
-        data = self.get_order_book(symbol)
-        db = DepthCache(symbol)
-        for bid in data['bids']:
-            db.add_bid(bid)
-        for ask in data['asks']:
-            db.add_ask(ask)
-        self.bid = db.bids()
-        self.ask = db.asks()
-        return self.bid, self.ask
 
     def get_order_book(self, symbol, limit=500):
         url = self.param['api'].get("orderbook", None)
@@ -451,31 +477,7 @@ class Binance(BinanceFutures):
         return self.parse_order(order)
 
     def parse_order(self, data):
-        """
-            {
-        "clientOrderId": "testOrder", // 用户自定义的订单号
-        "cumQuote": "0", // 成交金额
-        "executedQty": "0", // 成交数量
-        "orderId": 22542179, // 系统订单号
-        "origQty": "10", // 原始委托数量
-        "price": "0", // 委托价格
-        "reduceOnly": false, // 仅减仓
-        "side": "SELL", // 买卖方向
-        "positionSide": "SHORT", // 持仓方向
-        "status": "NEW", // 订单状态
-        "stopPrice": "0", // 触发价，对`TRAILING_STOP_MARKET`无效
-        "symbol": "BTCUSDT", // 交易对
-        "timeInForce": "GTC", // 有效方法
-        "type": "TRAILING_STOP_MARKET", // 订单类型
-        "activatePrice": "9020", // 跟踪止损激活价格, 仅`TRAILING_STOP_MARKET` 订单返回此字段
-        "priceRate": "0.3", // 跟踪止损回调比例, 仅`TRAILING_STOP_MARKET` 订单返回此字段
-        "updateTime": 1566818724722, // 更新时间
-        "workingType": "CONTRACT_PRICE" // 条件价格触发类型
-    }
-        :param data:
-        :return:
-        """
-        # print(data)
+
         if "code" in data:
             log.error(data)
             return None
@@ -532,53 +534,7 @@ class Binance(BinanceFutures):
         return self.positions.get(symbol, [])
 
     def _get_positions(self, symbol=None):
-        """"
-                [
-            {
-                "entryPrice": "0.00000", // 开仓均价
-                "marginType": "isolated", // 逐仓模式或全仓模式
-                "isAutoAddMargin": "false",
-                "isolatedMargin": "0.00000000", // 逐仓保证金
-                "leverage": "10", // 当前杠杆倍数
-                "liquidationPrice": "0", // 参考强平价格
-                "markPrice": "6679.50671178",   // 当前标记价格
-                "maxNotionalValue": "20000000", // 当前杠杆倍数允许的名义价值上限
-                "positionAmt": "0.000", // 头寸数量，符号代表多空方向, 正数为多，负数为空
-                "symbol": "BTCUSDT", // 交易对
-                "unRealizedProfit": "0.00000000", // 持仓未实现盈亏
-                "positionSide": "BOTH", // 持仓方向
-            },
-            {
-                "entryPrice": "6563.66500", // 开仓均价
-                "marginType": "isolated", // 逐仓模式或全仓模式
-                "isAutoAddMargin": "false",
-                "isolatedMargin": "15517.54150468", // 逐仓保证金
-                "leverage": "10", // 当前杠杆倍数
-                "liquidationPrice": "5930.78", // 参考强平价格
-                "markPrice": "6679.50671178",   // 当前标记价格
-                "maxNotionalValue": "20000000", // 当前杠杆倍数允许的名义价值上限
-                "positionAmt": "20.000", // 头寸数量，符号代表多空方向, 正数为多，负数为空
-                "symbol": "BTCUSDT", // 交易对
-                "unRealizedProfit": "2316.83423560" // 持仓未实现盈亏
-                "positionSide": "LONG", // 持仓方向
-            },
-            {
-                "entryPrice": "0.00000", // 开仓均价
-                "marginType": "isolated", // 逐仓模式或全仓模式
-                "isAutoAddMargin": "false",
-                "isolatedMargin": "5413.95799991", // 逐仓保证金
-                "leverage": "10", // 当前杠杆倍数
-                "liquidationPrice": "7189.95", // 参考强平价格
-                "markPrice": "6679.50671178",   // 当前标记价格
-                "maxNotionalValue": "20000000", // 当前杠杆倍数允许的名义价值上限
-                "positionAmt": "-10.000", // 头寸数量，符号代表多空方向, 正数为多，负数为空
-                "symbol": "BTCUSDT", // 交易对
-                "unRealizedProfit": "-1156.46711780" // 持仓未实现盈亏
-                "positionSide": "SHORT", // 持仓方向
-            }
 
-        ]
-         """
         uri = "/fapi/v1/positionRisk"
         data = {
             "timestamp": tools.get_cur_timestamp_ms()
@@ -718,251 +674,64 @@ class Binance(BinanceFutures):
         return self.request("delete", uri, body=data, auth=True)
 
 
-    def signature(self, data, auth=False):
-        if data:
-            query = "&".join(["=".join([str(k), str(v)]) for k, v in data.items()])
-        else:
-            query = ""
-        if auth and query:
-            sign = hmac.new(self.API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
-            query += "&signature={s}".format(s=sign)
-        return query
 
-
-    def get_listenKey(self):
-        url = self.param['api'].get("listenKey", None)
-        # uri = "/fapi/v1/listenKey"
+    def get_info(self):
+        url = self.param['api'].get("exchangeInfo", None)
+        data={}
+        rs=self.request("get", url, body=data, auth=False)
+        status=rs.get("status","")
+        if status=="ok":
+            rs=rs["data"]
+            for i in rs:
+                self.symbols[i["contract_code"]]=i
+    def get_fundingrate(self,symbol):
+        url = self.param['api'].get("fundingrate", None)
+        # uri = "/fapi/v1/openOrders"
         data = {
+            "contract_code": symbol,
             "timestamp": tools.get_cur_timestamp_ms()
         }
+        rs=self.request("get", url, body=data, auth=False)
+        status = rs.get("status", "")
+        if status == "ok":
+             return rs["data"]
+        else:
+            return None
 
-        key = self.request("post", url, body=data, auth=False)
-        return key
+    def get_fees(self):
+        self.get_info()
+        rate = {}
+        for i in self.symbols:
+            rate[i] = float(self.get_fundingrate(i).get("funding_rate", 0))
+        # print(rate)
+        return rate
 
+    def get_sub(self,**kwargs):
+        req={}
+        return req
 
-    # @sched.scheduled_job('interval', minutes=45)
-    def put_listenKey(self):
-        if self.API_KEY:
-            url = self.param['api'].get("listenKey", None)
-            data = {
-                "timestamp": tools.get_cur_timestamp_ms()
-            }
-            return self.request("put", url, body=data, auth=False)
-
-
-
-
-
-class BinanceFuturesWebsocket(WebsocketClient):
-    """ Binance Trade module. You can initialize trader object with some attributes in kwargs.
-    """
-    host = "wss://fstream.binance.com/ws/"
-
-    def __init__(self, **kwargs):
-        """Initialize."""
-        super().__init__()
-        param = kwargs.get("param", {})
-        self.host = param.get("wshost", "")
-        self.chanels = param.get("channels", {})
-        self.subscribes = kwargs.get("subscribes", {})
-        self.rest = kwargs.get("rest", None)
-        self.listenKey = ""
-        self.symbols = kwargs.get("symbols", ["btcusdt"])
-        self.connect()
-
-        self.subscribe(self.subscribes)
-
-    def _on_message(self, ws, msg):
-        try:
-            message = json.loads(msg)
-            channel = message.get('e')
-            if channel == "depthUpdate":
-                f = self.subscribes.get("orderbook", None)
-                f(message)
-            elif channel == 'depth':
-                f = self.subscribes.get("orderbook", None)
-                f(message)
-            elif channel == 'aggTrade':
-                f = self.subscribes.get("trades", None)
-                f(message)
-
-            elif channel == '24hrTicker':
-                f = self.subscribes.get("ticker", None)
-                f(message)
-            elif channel == 'ACCOUNT_UPDATE':
-                f = self.subscribes.get("account", None)
-                f(message)
-            elif channel == 'ORDER_TRADE_UPDATE':
-                f = self.subscribes.get("order", None)
-                f(message)
-            elif channel == 'forceOrder':
-                f = self.subscribes.get("forceOrder", None)
-                f(message)
-            elif channel == 'kline':
-                k = message["k"]
-                i = k["i"]
-                # log.info(self.subscribes)
-                f = self.subscribes.get("kline_" + i, None)
-                f(message)
-            else:
-                log.error(f"未知消息类型:{msg}")
-        except Exception as e:
-            log.error(traceback.format_exc())
-
-    def _get_url(self):
-        try:
-            self.listenKey = self.rest.get_listenKey()
-            return self.host + "/" + self.listenKey["listenKey"]
-        except Exception as e:
-            log.info("获取listenkey异常")
-            return self.host
-
-    def _subscribe(self) -> None:
-        self.subscribe(self.subscribes)
-
-    def subscribe(self, channels):
-        for k in channels.keys():
-            c = self.chanels.get(k, "")
-            for symbol in self.symbols:
-                req = {
-                    "method": "SUBSCRIBE",
-                    "params": [f'{symbol}@{c}'],
-                    "id": 1
-                }
-                log.info(req)
-                self.send_json(req)
-            self.subscribes[k] = channels[k]
-
-    def _ping(self, ws):
-        pass
-        # timeout = 30
-        # count = 0
-        # while self.ws:
-        #     if count < timeout:
-        #         time.sleep(1)
-        #         count = count + 1
-        #     else:
-        #         log.debug("ping")
-        #         self.send_json({'op': 'ping'})
-        #         count = 0
-
-
-from operator import itemgetter
-
-
-class DepthCache(object):
-    def __init__(self, symbol):
-        """Initialise the DepthCache
-        :param symbol: Symbol to create depth cache for
-        :type symbol: string
-        """
-        self.symbol = symbol
-        self._bids = {}
-        self._asks = {}
-        self.update_time = None
-
-    def add_bid(self, bid):
-        """Add a bid to the cache
-        :param bid:
-        :return:
-        """
-        self._bids[bid[0]] = float(bid[1])
-        if bid[1] == "0.00000000":
-            del self._bids[bid[0]]
-
-    def add_ask(self, ask):
-        """Add an ask to the cache
-        :param ask:
-        :return:
-        """
-        self._asks[ask[0]] = float(ask[1])
-        if ask[1] == "0.00000000":
-            del self._asks[ask[0]]
-
-    def bids(self):
-        """Get the current bids
-        :return: list of bids with price and quantity as floats
-        .. code-block:: python
-            [
-                [
-                    0.0001946,  # Price
-                    45.0        # Quantity
-                ],
-                [
-                    0.00019459,
-                    2384.0
-                ],
-                [
-                    0.00019158,
-                    5219.0
-                ],
-                [
-                    0.00019157,
-                    1180.0
-                ],
-                [
-                    0.00019082,
-                    287.0
-                ]
-            ]
-        """
-        return DepthCache.sort_depth(self._bids, reverse=True)
-
-    def asks(self):
-        """Get the current asks
-        :return: list of asks with price and quantity as floats
-        .. code-block:: python
-            [
-                [
-                    0.0001955,  # Price
-                    57.0'       # Quantity
-                ],
-                [
-                    0.00019699,
-                    778.0
-                ],
-                [
-                    0.000197,
-                    64.0
-                ],
-                [
-                    0.00019709,
-                    1130.0
-                ],
-                [
-                    0.0001971,
-                    385.0
-                ]
-            ]
-        """
-        return DepthCache.sort_depth(self._asks, reverse=False)
-
-    @staticmethod
-    def sort_depth(vals, reverse=False):
-        """Sort bids or asks by price
-        """
-        lst = [[float(price), quantity] for price, quantity in vals.items()]
-        lst = sorted(lst, key=itemgetter(0), reverse=reverse)
-        return lst
+    def subscribe(self,channels):
+        self._subscribe(channels,self.symbols)
 
 
 # sched.start()
 # sched.print_jobs(jobstore=None, out=sys.stdout)  # 输出作业信息
 # log.info("Binance定时任务启动")
-def test_order():
+def test_fundingrate():
     ev = EventEngine()
     key = "qer4Udt2tkbfOihvE5zlINiPgfmuC5hbx1SEQmmow8XXiJqZhyGwtF83VRjuIqXN"
     secret = "X7UOt9wgYNCgjuLwIKX6Taij6afQTj89mKqG4fsYqufnxqrLI2GsV5kTZ7H7u1TL"
-    b = Binance(ev, key, secret)
-    b.start(["BTCUSDT"])
-    # success,text=b.get_user_account()
-    # success, orderid = b.buy()
-    while True:
-        time.sleep(5)
-        print(b.get_balnce("USDT"))
-        print(b.get_positions("BTCUSDT", Direction.SHORT))
-        print(b.get_positions("BTCUSDT", Direction.LONG))
-    pass
+    b = HuobiFutures(ev)
+    b.get_info()
+    rate=[]
+    for i in b.symbols:
+
+        rate.append([i,float(b.get_fundingrate(i).get("funding_rate",0))])
+    # print(rate)
+    df=pd.DataFrame(rate)
+    df.columns=["symbol","rate"]
+    df=df.sort_values(by="rate",ascending=True)
+    print(df)
 
 
 def on_sub(event):
@@ -973,7 +742,7 @@ def on_sub(event):
 def test_subscribe():
     ev = EventEngine()
     ev.start()
-    b = Binance(ev)
+    b = HuobiFutures(ev)
     b.start("btcusdt", [FORCEORDER])
     ev.register(FORCEORDER, on_sub)
 
@@ -981,7 +750,7 @@ def test_subscribe():
 def teste_bar():
     ev = EventEngine()
     ev.start()
-    b = Binance(ev)
+    b = HuobiFutures(ev)
     bar = b.get_bar("BTCUSDT", "15m")
     log.info(bar.tail())
     balance = b.get_balnce()
@@ -990,4 +759,4 @@ def teste_bar():
 
 if __name__ == "__main__":
     # test_order()
-    teste_bar()
+    test_fundingrate()
